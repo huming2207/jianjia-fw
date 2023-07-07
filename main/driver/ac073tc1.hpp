@@ -1,5 +1,7 @@
 #pragma once
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
 #include <esp_err.h>
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
@@ -14,6 +16,11 @@ namespace ac073_def
         uint8_t cmd;
         uint8_t data[6];
         uint8_t len;
+    };
+
+    enum state_bits : uint32_t
+    {
+        STATE_IDLE = BIT0,
     };
 
     enum regs : uint8_t
@@ -54,7 +61,10 @@ public:
 
 public:
     esp_err_t init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_num_t _dc, gpio_num_t _rst, gpio_num_t _busy, spi_host_device_t _spi_periph = SPI3_HOST);
-
+    esp_err_t power_on();
+    esp_err_t wait_busy(uint32_t timeout_ms = 35000);
+    esp_err_t commit_framebuffer(uint8_t *fb, size_t len);
+    esp_err_t sleep();
 private:
     ac073tc1() = default;
     esp_err_t send_data(const uint8_t *buf, size_t len);
@@ -62,6 +72,10 @@ private:
     esp_err_t send_sequence(const ac073_def::seq *seqs, size_t cnt);
 
 private:
+    static void IRAM_ATTR busy_intr(void *_arg);
+
+private:
+    EventGroupHandle_t epd_events = nullptr;
     spi_device_handle_t spi_dev = nullptr;
     gpio_num_t cs = GPIO_NUM_NC;
     gpio_num_t dc = GPIO_NUM_NC;
@@ -90,4 +104,7 @@ private:
             {0xE6, {0x00}, 1},
             {0x04, {}, 0}, // Power ON, and wait here!
     };
+
+    static const constexpr ac073_def::seq refresh_seq = {0x12, {0x00}, 1};
+    static const constexpr ac073_def::seq sleep_seq = {0x02, {0x00}, 1};
 };
