@@ -7,7 +7,7 @@
 esp_err_t ac073tc1::init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_num_t _dc, gpio_num_t _rst, gpio_num_t _busy, spi_host_device_t _spi_periph)
 {
     epd_events = xEventGroupCreate();
-    if (epd_events != nullptr) {
+    if (epd_events == nullptr) {
         return ESP_ERR_NO_MEM;
     }
 
