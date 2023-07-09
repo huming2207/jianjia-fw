@@ -16,7 +16,7 @@ esp_err_t ac073tc1::init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_
     pin_default_cfg.pin_bit_mask = ((1ULL << _sda) | (1ULL << _scl) | (1ULL << _cs) | (1ULL << _dc) | (1ULL << _rst) | (1ULL << _busy));
     pin_default_cfg.pull_up_en = GPIO_PULLUP_ENABLE;
     pin_default_cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    pin_default_cfg.intr_type = GPIO_INTR_DISABLE;
+    pin_default_cfg.intr_type   = GPIO_INTR_DISABLE;
     auto ret = gpio_config(&pin_default_cfg);
 
     gpio_config_t out_pin_cfg = {};
@@ -69,7 +69,7 @@ esp_err_t ac073tc1::init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_
     spi_dev_cfg.mode = 0; // CPOL & CPHA = 0 - from demo code
     spi_dev_cfg.flags = 0;
     spi_dev_cfg.clock_speed_hz = SPI_MASTER_FREQ_10M; // From demo code, no further timing info
-    spi_dev_cfg.queue_size = 2;
+    spi_dev_cfg.queue_size = 7;
     ret = ret ?: spi_bus_add_device(_spi_periph, &spi_dev_cfg, &spi_dev);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "SPI master setup failed: 0x%x", ret);
@@ -82,18 +82,21 @@ esp_err_t ac073tc1::init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_
 
 esp_err_t ac073tc1::power_on()
 {
+    ESP_LOGD(TAG, "Send init sequence");
     auto ret = send_sequence(init_seq, sizeof(init_seq) / sizeof(ac073_def::seq));
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "SPI init sequence failed: 0x%x", ret);
         return ret;
     }
 
+    ESP_LOGD(TAG, "Init sequence sent, waiting");
     ret = ret ?: wait_busy();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "EPD init timeout: 0x%x", ret);
         return ret;
     }
 
+    ESP_LOGI(TAG, "Power up OK");
     return ret;
 }
 
@@ -117,6 +120,7 @@ esp_err_t ac073tc1::send_data(const uint8_t *buf, size_t len)
         ret = ret ?: spi_device_transmit(spi_dev, &spi_tract);
         remain_len -= tx_len;
         buf_ptr += tx_len;
+        ESP_LOGD(TAG, "Send len %d; remain len %d; total %d", tx_len, remain_len, len);
     }
 
     gpio_set_level(cs, 1);
@@ -142,6 +146,7 @@ esp_err_t ac073tc1::send_sequence(const ac073_def::seq *seqs, size_t cnt)
 {
     esp_err_t ret = ESP_OK;
     for (size_t idx = 0; idx < cnt; idx += 1) {
+        ESP_LOGD(TAG, "Send cmd 0x%02x; data len %u", seqs[idx].cmd, seqs[idx].len);
         ret = send_cmd(seqs[idx].cmd);
         if (seqs[idx].len > 0) {
             ret = ret ?: send_data(seqs[idx].data, seqs[idx].len);
@@ -167,9 +172,12 @@ esp_err_t ac073tc1::commit_framebuffer(uint8_t *fb, size_t len)
     auto ret = send_cmd(0x10);
     ret = ret ?: send_data(fb, len);
     ret = ret ?: send_sequence(&refresh_seq, 1);
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    ESP_LOGI(TAG, "Refresh begin");
     ret = ret ?: wait_busy();
 
+    ESP_LOGI(TAG, "Refresh done");
     return ret;
 }
 
