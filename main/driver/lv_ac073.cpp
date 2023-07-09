@@ -52,7 +52,19 @@ void lv_ac073::flush_handler(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_
             break;
         }
 
-        disp_fb[processed_pix_cnt] = (de_palette(color_p[idx]) << 4) | (de_palette(color_p[idx + 1]));
+        disp_fb[processed_pix_cnt] = (((find_nearest_color(color_p[idx].full) & 0b1111) << 4) | (find_nearest_color(color_p[idx + 1].full) & 0b1111));
         processed_pix_cnt += 1;
     }
+
+    auto ret = ctx->epd->commit_framebuffer(disp_fb, sizeof(disp_fb));
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "EPD buffer commit returned non-OK result: 0x%x", ret);
+    }
+
+    lv_disp_flush_ready(disp_drv);
+}
+
+uint8_t lv_ac073::find_nearest_color(uint8_t color)
+{
+    return ac073_def::palette_lut[color];
 }
