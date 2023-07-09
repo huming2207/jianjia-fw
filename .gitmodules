@@ -1,3 +1,6 @@
 [submodule "components/jianjia_net"]
 	path = components/jianjia_net
 	url = git@github.com:huming2207/jianjia-net.git
+[submodule "components/lvgl"]
+	path = components/lvgl
+	url = https://github.com/lvgl/lvgl
