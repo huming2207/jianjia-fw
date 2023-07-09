@@ -118,7 +118,7 @@ public:
 private:
     lv_ac073() = default;
     static void flush_handler(lv_disp_drv_t *disp_drv, const lv_area_t * area, lv_color_t * color_p);
-    static inline uint8_t de_palette(lv_color_t color);
+    static inline uint8_t find_nearest_color(uint8_t pix);
 
 private:
     static const constexpr char TAG[] = "lv_ac073";
