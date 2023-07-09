@@ -143,7 +143,7 @@ esp_err_t ac073tc1::send_sequence(const ac073_def::seq *seqs, size_t cnt)
     esp_err_t ret = ESP_OK;
     for (size_t idx = 0; idx < cnt; idx += 1) {
         ret = send_cmd(seqs[idx].cmd);
-        if (seqs[idx].len > 1) {
+        if (seqs[idx].len > 0) {
             ret = ret ?: send_data(seqs[idx].data, seqs[idx].len);
         }
 
