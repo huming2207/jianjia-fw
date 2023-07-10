@@ -18,7 +18,7 @@ namespace ac073_def
         uint8_t len;
     };
 
-    enum state_bits : uint32_t
+    enum tcon_state_bits : uint32_t
     {
         STATE_IDLE = BIT0,
     };
@@ -63,8 +63,10 @@ public:
     esp_err_t init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_num_t _dc, gpio_num_t _rst, gpio_num_t _busy, spi_host_device_t _spi_periph = SPI3_HOST);
     esp_err_t power_on();
     esp_err_t wait_busy(uint32_t timeout_ms = 120000);
-    esp_err_t commit_framebuffer(uint8_t *fb, size_t len);
+    esp_err_t commit_framebuffer(uint8_t *fb, size_t len, bool refresh_after = false);
     esp_err_t sleep();
+    esp_err_t refresh(uint32_t timeout_ms = 120000);
+
 private:
     ac073tc1() = default;
     esp_err_t send_data(const uint8_t *buf, size_t len);

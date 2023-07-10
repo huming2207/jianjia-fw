@@ -2,6 +2,10 @@
 
 #include <cstdint>
 #include <esp_err.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+#include <lvgl.h>
 
 #include "ac073tc1.hpp"
 
@@ -27,6 +31,11 @@ namespace ac073_def
         RED = 4,
         YELLOW = 5,
         ORANGE = 6,
+    };
+
+    enum lv_state_bits : uint32_t {
+        STATE_RENDER_IDLE = BIT0,
+        STATE_XFER_IDLE = BIT1,
     };
 
     static const constexpr uint8_t palette_lut[] = {
@@ -115,6 +124,9 @@ public:
     esp_err_t init(gpio_num_t _sda = GPIO_NUM_16, gpio_num_t _scl = GPIO_NUM_15, gpio_num_t _cs = GPIO_NUM_7,
                    gpio_num_t _dc = GPIO_NUM_6, gpio_num_t _rst = GPIO_NUM_5, gpio_num_t _busy = GPIO_NUM_4, spi_host_device_t _spi_periph = SPI3_HOST);
 
+    esp_err_t render(uint32_t timeout_ms = 10000);
+    esp_err_t commit(uint32_t timeout_ms = 60000);
+
 private:
     lv_ac073() = default;
     static void flush_handler(lv_disp_drv_t *disp_drv, const lv_area_t * area, lv_color_t * color_p);
@@ -122,11 +134,14 @@ private:
 
 private:
     static const constexpr char TAG[] = "lv_ac073";
-    static uint8_t lv_fb[ac073_def::hor_size * ac073_def::ver_size];
-    static uint8_t disp_fb[ac073_def::hor_size * ac073_def::ver_size / 2];
+    static const constexpr size_t lv_fb_len = (ac073_def::hor_size * ac073_def::ver_size);
+    static const constexpr size_t disp_fb_len = (ac073_def::hor_size * ac073_def::ver_size) / 2;
+    uint8_t *lv_fb = nullptr;
+    uint8_t *disp_fb = nullptr;
 
 private:
     ac073tc1 *epd = ac073tc1::instance();
-    lv_disp_draw_buf_t lv_draw_buf = {};
     lv_disp_t *lv_disp = nullptr;
+    EventGroupHandle_t lv_state = nullptr;
+    lv_disp_draw_buf_t lv_draw_buf = {};
 };

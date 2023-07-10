@@ -167,17 +167,14 @@ esp_err_t ac073tc1::sleep()
     return ret;
 }
 
-esp_err_t ac073tc1::commit_framebuffer(uint8_t *fb, size_t len)
+esp_err_t ac073tc1::commit_framebuffer(uint8_t *fb, size_t len, bool refresh_after)
 {
     auto ret = send_cmd(0x10);
     ret = ret ?: send_data(fb, len);
-    ret = ret ?: send_sequence(&refresh_seq, 1);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    if (refresh_after) {
+        ret = ret ?: refresh();
+    }
 
-    ESP_LOGI(TAG, "Refresh begin");
-    ret = ret ?: wait_busy();
-
-    ESP_LOGI(TAG, "Refresh done");
     return ret;
 }
 
@@ -200,4 +197,16 @@ void IRAM_ATTR ac073tc1::busy_intr(void *_arg)
     if (ret == pdPASS) {
         portYIELD_FROM_ISR();
     }
+}
+
+esp_err_t ac073tc1::refresh(uint32_t timeout_ms)
+{
+    auto ret = send_sequence(&refresh_seq, 1);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    ESP_LOGI(TAG, "Refresh begin");
+    ret = ret ?: wait_busy(timeout_ms);
+
+    ESP_LOGI(TAG, "Refresh done");
+    return ret;
 }
