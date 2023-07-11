@@ -33,7 +33,6 @@ esp_err_t lv_ac073::init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_
     lv_init();
     lv_disp_draw_buf_init(&lv_draw_buf, lv_fb, nullptr, ac073_def::hor_size * ac073_def::ver_size);
 
-    lv_disp_drv_t disp_drv = {};
     lv_disp_drv_init(&disp_drv);
     disp_drv.flush_cb = flush_handler;
     disp_drv.antialiasing = 0;
@@ -48,6 +47,10 @@ esp_err_t lv_ac073::init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_
         return ESP_FAIL;
     }
 
+    xEventGroupSetBits(lv_state, ac073_def::STATE_XFER_IDLE);
+    xEventGroupSetBits(lv_state, ac073_def::STATE_RENDER_IDLE);
+
+    epd->power_on();
 
     return ret;
 }
@@ -55,12 +58,6 @@ esp_err_t lv_ac073::init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_
 void lv_ac073::flush_handler(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p)
 {
     auto *ctx = (lv_ac073 *)disp_drv->user_data;
-
-    auto ret_bits = xEventGroupWaitBits(ctx->lv_state, ac073_def::STATE_RENDER_IDLE, pdTRUE, pdTRUE, pdMS_TO_TICKS(10000));
-    if ((ret_bits & ac073_def::STATE_RENDER_IDLE) != 0) {
-        xEventGroupSetBits(ctx->lv_state, ac073_def::STATE_RENDER_IDLE);
-        ESP_LOGE(TAG, "Timeout when waiting previous render");
-    }
 
     ESP_LOGI(TAG, "Framebuffer flush begin, x1=%d, y1=%d; x2=%d, y2=%d", area->x1, area->y1, area->x2, area->y2);
 
@@ -71,7 +68,6 @@ void lv_ac073::flush_handler(lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_
     }
 
     ESP_LOGI(TAG, "Framebuffer flush end");
-    xEventGroupSetBits(ctx->lv_state, ac073_def::STATE_RENDER_IDLE);
     lv_disp_flush_ready(disp_drv);
 }
 
@@ -83,17 +79,18 @@ uint8_t lv_ac073::find_nearest_color(uint8_t color)
 esp_err_t lv_ac073::render(uint32_t timeout_ms)
 {
     auto ret_bits = xEventGroupWaitBits(lv_state, ac073_def::STATE_RENDER_IDLE, pdTRUE, pdTRUE, pdMS_TO_TICKS(timeout_ms));
-    if ((ret_bits & ac073_def::STATE_RENDER_IDLE) != 0) {
+    if ((ret_bits & ac073_def::STATE_RENDER_IDLE) == 0) {
         ESP_LOGE(TAG, "Timeout when waiting previous render");
         return ESP_ERR_TIMEOUT;
     }
 
     ESP_LOGI(TAG, "Render begin!");
     uint32_t remain_timeout = timeout_ms;
-    while(lv_disp->inv_p > 0) {
+    while(lv_disp_get_default()->inv_p > 0) {
         lv_task_handler();
+        lv_tick_inc(10);
         vTaskDelay(pdMS_TO_TICKS(10));
-        if (remain_timeout > 1) {
+        if (remain_timeout > 10) {
             remain_timeout -= 10;
         } else {
             xEventGroupSetBits(lv_state, ac073_def::STATE_RENDER_IDLE);
@@ -110,7 +107,7 @@ esp_err_t lv_ac073::render(uint32_t timeout_ms)
 esp_err_t lv_ac073::commit(uint32_t timeout_ms)
 {
     auto ret_bits = xEventGroupWaitBits(lv_state, ac073_def::STATE_XFER_IDLE, pdTRUE, pdTRUE, pdMS_TO_TICKS(timeout_ms));
-    if ((ret_bits & ac073_def::STATE_XFER_IDLE) != 0) {
+    if ((ret_bits & ac073_def::STATE_XFER_IDLE) == 0) {
         ESP_LOGE(TAG, "Timeout when waiting previous SPI transfer");
         return ESP_ERR_TIMEOUT;
     }

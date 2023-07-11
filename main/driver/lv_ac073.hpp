@@ -142,6 +142,7 @@ private:
 private:
     ac073tc1 *epd = ac073tc1::instance();
     lv_disp_t *lv_disp = nullptr;
+    lv_disp_drv_t disp_drv = {};
     EventGroupHandle_t lv_state = nullptr;
     lv_disp_draw_buf_t lv_draw_buf = {};
 };

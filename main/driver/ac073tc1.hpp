@@ -66,6 +66,7 @@ public:
     esp_err_t commit_framebuffer(uint8_t *fb, size_t len, bool refresh_after = false);
     esp_err_t sleep();
     esp_err_t refresh(uint32_t timeout_ms = 120000);
+    esp_err_t clear_display();
 
 private:
     ac073tc1() = default;

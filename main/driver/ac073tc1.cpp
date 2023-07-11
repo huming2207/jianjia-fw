@@ -41,7 +41,7 @@ esp_err_t ac073tc1::init(gpio_num_t _sda, gpio_num_t _scl, gpio_num_t _cs, gpio_
     ret = ret ?: gpio_set_level(_rst, 0);
     vTaskDelay(pdMS_TO_TICKS(20));
     ret = ret ?: gpio_set_level(_rst, 1);
-    vTaskDelay(pdMS_TO_TICKS(20));
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "GPIO config or reset failed");
@@ -90,6 +90,7 @@ esp_err_t ac073tc1::power_on()
     }
 
     ESP_LOGD(TAG, "Init sequence sent, waiting");
+    vTaskDelay(pdMS_TO_TICKS(10));
     ret = ret ?: wait_busy();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "EPD init timeout: 0x%x", ret);
